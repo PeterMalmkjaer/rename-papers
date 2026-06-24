@@ -73,3 +73,25 @@ def test_classify_scholarly_markers_is_paper():
 
 def test_classify_unknown_is_ambiguous():
     assert classify_document("Haze Aur Cel.M SUE", has_doi=False).kind == "ambiguous"
+
+
+from rename_papers import is_already_conformant, resolve_collision
+
+
+def test_already_conformant_detects_doi_in_name():
+    name = "AbdelRahim_et_al_(2022)_Trust_10.1016_j.aos.2021.101282.pdf"
+    assert is_already_conformant(name, "10.1016/j.aos.2021.101282") is True
+
+
+def test_already_conformant_false_without_doi_match():
+    assert is_already_conformant("random.pdf", "10.1016/j.aos.2021.101282") is False
+    assert is_already_conformant("random.pdf", None) is False
+
+
+def test_resolve_collision_returns_target_when_free():
+    assert resolve_collision("a.pdf", set()) == "a.pdf"
+
+
+def test_resolve_collision_appends_lowest_free_number():
+    taken = {"a.pdf", "a (2).pdf"}
+    assert resolve_collision("a.pdf", taken) == "a (3).pdf"

@@ -85,3 +85,22 @@ def build_filename(meta, max_len=200):
         title = title[: max(0, len(title) - overflow)].rstrip()
         name = sanitize_filename(f"{prefix}{title}{suffix}")
     return name
+
+
+def is_already_conformant(current_name, doi):
+    if not doi:
+        return False
+    low = current_name.lower()
+    return doi.lower() in low or doi.replace("/", "_").lower() in low
+
+
+def resolve_collision(target, taken):
+    if target not in taken:
+        return target
+    stem, dot, ext = target.rpartition(".")
+    base = stem if dot else target
+    suffix = f".{ext}" if dot else ""
+    n = 2
+    while f"{base} ({n}){suffix}" in taken:
+        n += 1
+    return f"{base} ({n}){suffix}"
