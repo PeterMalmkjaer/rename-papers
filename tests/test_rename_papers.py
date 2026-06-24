@@ -282,6 +282,34 @@ def test_main_apply_from_json_renames_exactly(tmp_path):
     assert not src.exists()
 
 
+import glob as _glob
+
+
+def test_main_apply_writes_timestamped_and_latest_undo(tmp_path):
+    src = tmp_path / "old.pdf"
+    src.write_bytes(b"%PDF fake")
+    payload = [
+        {"path": str(src), "group": "rename", "proposed": "Smith, J. (2023) T - 10.1_x.pdf", "reason": ""},
+    ]
+    json_file = tmp_path / "results.json"
+    json_file.write_text(_json.dumps(payload), encoding="utf-8")
+
+    _main([str(tmp_path), "--apply", "--from-json", str(json_file)])
+
+    # Exactly one timestamped undo log must exist
+    timestamped = _glob.glob(str(tmp_path / "rename-undo-*.json"))
+    assert len(timestamped) == 1
+
+    # The "latest" pointer must also exist
+    latest = tmp_path / "rename-undo.json"
+    assert latest.exists()
+
+    # Both files must have identical contents
+    assert _json.loads(latest.read_text()) == _json.loads(
+        open(timestamped[0], encoding="utf-8").read()
+    )
+
+
 from rename_papers import extract_variant_marker
 
 
@@ -308,6 +336,13 @@ def test_variant_marker_plain_year_is_not_a_marker():
 
 def test_variant_marker_none():
     assert extract_variant_marker("Smith_(2023)_Clean.pdf") is None
+
+
+from rename_papers import timestamped_undo_filename
+
+
+def test_timestamped_undo_filename():
+    assert timestamped_undo_filename("20260624-143012") == "rename-undo-20260624-143012.json"
 
 
 from rename_papers import extract_all_dois

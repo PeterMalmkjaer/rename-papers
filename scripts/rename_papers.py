@@ -5,10 +5,16 @@ import glob
 import os
 import argparse
 import sys
+import shutil
 import unicodedata
 import urllib.request
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional
+
+def timestamped_undo_filename(stamp: str) -> str:
+    return f"rename-undo-{stamp}.json"
+
 
 _ILLEGAL = re.compile(r'[/\\:*?"<>|]')
 _WHITESPACE = re.compile(r"\s+")
@@ -354,9 +360,12 @@ def main(argv=None):
             )
 
     if args.apply:
-        undo_path = os.path.join(args.folder, "rename-undo.json")
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        undo_path = os.path.join(args.folder, timestamped_undo_filename(stamp))
         undo = apply_renames(results, args.folder, undo_path)
-        print(f"\nRenamed {len(undo)} files. Undo log: {undo_path}")
+        latest_path = os.path.join(args.folder, "rename-undo.json")
+        shutil.copyfile(undo_path, latest_path)
+        print(f"\nRenamed {len(undo)} files. Undo log: {undo_path} (latest: {latest_path})")
     else:
         print("\n(dry run — nothing renamed; pass --apply to rename)")
     return 0
