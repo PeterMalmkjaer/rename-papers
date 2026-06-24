@@ -24,10 +24,13 @@ See `references/format-rules.md` for the exact format.
 3. **Confirm with the user.** Show the complete proposed set (auto renames +
    any you resolved manually). Wait for explicit approval.
 
-4. **Apply.** Run with `--apply`:
-   `python3 scripts/rename_papers.py "<FOLDER>" --apply`
+4. **Apply.** Pass the JSON written in step 1 back via `--from-json` so the
+   applied set is exactly what you reviewed — no re-scan, no drift:
+   `python3 scripts/rename_papers.py "<FOLDER>" --apply --from-json /tmp/rename-papers.json`
    This renames the auto-detected files and writes `rename-undo.json` in the
-   folder so the batch can be reversed.
+   folder so the batch can be reversed. (`--from-json` applies exactly the
+   reviewed set; omitting it causes a fresh re-scan that may differ from the
+   dry-run preview.)
 
 ## Notes
 - Default is always dry run; `--apply` is the only thing that changes files.

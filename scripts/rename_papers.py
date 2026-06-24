@@ -76,6 +76,8 @@ def classify_document(text, has_doi, embedded_title=""):
 
 
 def build_filename(meta, max_len=200):
+    if not meta.authors:
+        raise ValueError("build_filename requires at least one author")
     first = meta.authors[0]
     author_part = f"{first.family}, {first.given[0]}." if first.given else first.family
     if len(meta.authors) >= 2:
@@ -225,6 +227,20 @@ def apply_renames(results, folder, undo_log_path):
     return undo
 
 
+def load_results_from_json(json_path: str) -> list:
+    with open(json_path, "r", encoding="utf-8") as f:
+        items = json.load(f)
+    return [
+        FileResult(
+            path=item["path"],
+            group=item["group"],
+            proposed=item.get("proposed"),
+            reason=item.get("reason", ""),
+        )
+        for item in items
+    ]
+
+
 def format_report(results):
     renames = [r for r in results if r.group == "rename"]
     reviews = [r for r in results if r.group == "review"]
@@ -251,15 +267,27 @@ def main(argv=None):
     parser.add_argument("folder", help="folder containing PDFs")
     parser.add_argument("--apply", action="store_true", help="actually rename (default: dry run)")
     parser.add_argument("--json", dest="json_path", help="write full results as JSON to this path")
+    parser.add_argument("--from-json", dest="from_json", metavar="PATH",
+                        help="load results from a previously written --json file and apply exactly those renames")
     args = parser.parse_args(argv)
 
-    results = process_folder(args.folder)
-    print(format_report(results))
+    if args.apply and args.from_json:
+        results = load_results_from_json(args.from_json)
+        print(format_report(results))
+    else:
+        results = process_folder(args.folder)
+        print(format_report(results))
 
-    if args.json_path:
-        payload = [{"path": r.path, "group": r.group, "proposed": r.proposed, "reason": r.reason} for r in results]
-        with open(args.json_path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, ensure_ascii=False)
+        if args.json_path:
+            payload = [{"path": r.path, "group": r.group, "proposed": r.proposed, "reason": r.reason} for r in results]
+            with open(args.json_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, ensure_ascii=False)
+
+        if args.apply:
+            print(
+                "Warning: applying without --from-json re-scans the folder and may differ from the dry-run preview.",
+                file=sys.stderr,
+            )
 
     if args.apply:
         undo_path = os.path.join(args.folder, "rename-undo.json")

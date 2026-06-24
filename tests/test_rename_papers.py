@@ -55,6 +55,12 @@ def test_build_filename_truncates_long_title_under_max_len():
     assert name.endswith(" - 10.1000_xyz123.pdf")
 
 
+def test_build_filename_raises_on_empty_authors():
+    import pytest
+    with pytest.raises(ValueError, match="at least one author"):
+        build_filename(PaperMeta(authors=[], year=2023, title="T", doi="10.1/x"))
+
+
 from rename_papers import Classification, classify_document
 
 
@@ -237,3 +243,39 @@ def test_format_report_lists_renames_and_reviews_hides_skips():
     assert "no DOI found in PDF" in out
     assert "junk.pdf" not in out          # skipped files are silent
     assert "1" in out                      # conformant count appears
+
+
+from rename_papers import load_results_from_json
+from rename_papers import main as _main
+
+
+def test_load_results_from_json(tmp_path):
+    src = tmp_path / "paper.pdf"
+    src.write_bytes(b"%PDF fake")
+    payload = [
+        {"path": str(src), "group": "rename", "proposed": "Smith, J. (2023) T - 10.1_x.pdf", "reason": ""},
+    ]
+    json_file = tmp_path / "results.json"
+    json_file.write_text(_json.dumps(payload), encoding="utf-8")
+
+    results = load_results_from_json(str(json_file))
+
+    assert len(results) == 1
+    assert results[0].path == str(src)
+    assert results[0].group == "rename"
+    assert results[0].proposed == "Smith, J. (2023) T - 10.1_x.pdf"
+
+
+def test_main_apply_from_json_renames_exactly(tmp_path):
+    src = tmp_path / "old.pdf"
+    src.write_bytes(b"%PDF fake")
+    payload = [
+        {"path": str(src), "group": "rename", "proposed": "Smith, J. (2023) T - 10.1_x.pdf", "reason": ""},
+    ]
+    json_file = tmp_path / "results.json"
+    json_file.write_text(_json.dumps(payload), encoding="utf-8")
+
+    _main([str(tmp_path), "--apply", "--from-json", str(json_file)])
+
+    assert (tmp_path / "Smith, J. (2023) T - 10.1_x.pdf").exists()
+    assert not src.exists()
