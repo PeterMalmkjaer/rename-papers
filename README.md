@@ -1,5 +1,7 @@
 # rename-papers
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Rename scientific paper and book PDFs into consistent, Harvard-style filenames
 with the DOI appended — verified against [CrossRef](https://www.crossref.org/),
 dry-run first, and fully reversible.
