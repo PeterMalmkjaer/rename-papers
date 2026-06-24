@@ -126,3 +126,21 @@ def test_crossref_lookup_returns_none_on_error():
 
 def test_crossref_lookup_returns_none_on_empty():
     assert crossref_lookup("10.1000/xyz123", fetch=lambda url: {}) is None
+
+
+import fitz  # pymupdf, test-only
+from rename_papers import extract_pdf_text_and_meta
+
+
+def test_extract_pdf_text_and_meta(tmp_path):
+    pdf = tmp_path / "sample.pdf"
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "A Test Paper\nAbstract\nDOI 10.1000/xyz123")
+    doc.set_metadata({"title": "A Test Paper"})
+    doc.save(str(pdf))
+    doc.close()
+
+    text, title = extract_pdf_text_and_meta(str(pdf))
+    assert "10.1000/xyz123" in text
+    assert title == "A Test Paper"

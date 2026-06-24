@@ -139,3 +139,16 @@ def crossref_lookup(doi, fetch):
             year = parts[0][0]
             break
     return PaperMeta(authors=authors, year=year, title=title, doi=doi)
+
+
+def extract_pdf_text_and_meta(path, max_pages=2):
+    from pypdf import PdfReader
+
+    reader = PdfReader(path)
+    title = ""
+    if reader.metadata and reader.metadata.title:
+        title = str(reader.metadata.title)
+    text = ""
+    for page in reader.pages[:max_pages]:
+        text += (page.extract_text() or "") + "\n"
+    return text, title
