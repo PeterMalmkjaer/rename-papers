@@ -31,6 +31,30 @@ def extract_doi(text):
     return m.group(0).rstrip(".")
 
 
+_MARKER_ANNOTATED = re.compile(r"annotated", re.IGNORECASE)
+_MARKER_VERSION = re.compile(r"(?:^|[ _\-(])(v\d+)(?:[ _\-).]|$)", re.IGNORECASE)
+_MARKER_YEARLETTER = re.compile(r"\(\d{4}([a-z])\)")
+_MARKER_DUPCOUNT = re.compile(r"\((\d{1,2})\)")
+
+
+def extract_variant_marker(filename):
+    stem = os.path.splitext(os.path.basename(filename or ""))[0]
+    markers = []
+    if _MARKER_ANNOTATED.search(stem):
+        markers.append("ANNOTATED")
+    mv = _MARKER_VERSION.search(stem)
+    if mv:
+        markers.append(mv.group(1).lower())
+    my = _MARKER_YEARLETTER.search(stem)
+    if my:
+        markers.append(my.group(1))
+    else:
+        md = _MARKER_DUPCOUNT.search(stem)
+        if md:
+            markers.append(f"({md.group(1)})")
+    return " ".join(markers) if markers else None
+
+
 @dataclass
 class Author:
     family: str

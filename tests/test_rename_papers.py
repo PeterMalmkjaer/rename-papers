@@ -279,3 +279,31 @@ def test_main_apply_from_json_renames_exactly(tmp_path):
 
     assert (tmp_path / "Smith, J. (2023) T - 10.1_x.pdf").exists()
     assert not src.exists()
+
+
+from rename_papers import extract_variant_marker
+
+
+def test_variant_marker_annotated():
+    assert extract_variant_marker("Frey_(1993)_Foo_ANNOTATED.pdf") == "ANNOTATED"
+
+
+def test_variant_marker_version():
+    assert extract_variant_marker("Gallus_Frey_(2016)_Awards_v2.pdf") == "v2"
+
+
+def test_variant_marker_year_letter():
+    assert extract_variant_marker("An_et_al_(2015a)_Template.pdf") == "a"
+    assert extract_variant_marker("Bauer_et_al_(2004b)_Ethical.pdf") == "b"
+
+
+def test_variant_marker_dup_counter():
+    assert extract_variant_marker("Mergers_in_the_Indian_Banking_Sector_Tre (1).pdf") == "(1)"
+
+
+def test_variant_marker_plain_year_is_not_a_marker():
+    assert extract_variant_marker("Autor_(2015)_Why_Jobs.pdf") is None
+
+
+def test_variant_marker_none():
+    assert extract_variant_marker("Smith_(2023)_Clean.pdf") is None
