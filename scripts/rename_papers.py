@@ -38,14 +38,11 @@ _MARKER_YEARLETTER = re.compile(r"\(\d{4}([a-z])\)")
 _MARKER_DUPCOUNT = re.compile(r"\((\d{1,2})\)")
 
 
-_DOI_ANY_RE = re.compile(r"10\.\d+/[^\s\"<>,;()\[\]]+", re.IGNORECASE)
-
-
 def extract_all_dois(text):
     if not text:
         return []
     seen = []
-    for m in _DOI_ANY_RE.finditer(text):
+    for m in _DOI_RE.finditer(text):
         d = m.group(0).rstrip(".")
         if d not in seen:
             seen.append(d)
@@ -261,7 +258,7 @@ def process_folder(folder, extractor=extract_pdf_text_and_meta, fetcher=http_get
 
         surname_norm = _normalize(meta.authors[0].family)
         name_norm = _normalize(name)
-        if len(surname_norm) >= 3 and _has_alpha_token(name) and "_" in name and surname_norm not in name_norm:
+        if len(surname_norm) >= 3 and _has_alpha_token(name) and surname_norm not in name_norm:
             results.append(FileResult(path, "review",
                                       reason=f"CrossRef author '{meta.authors[0].family}' not found in filename — possible wrong DOI"))
             continue

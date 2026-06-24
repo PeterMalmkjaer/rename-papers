@@ -163,13 +163,13 @@ def _touch(folder, name):
 
 
 def test_process_folder_groups_results(tmp_path):
-    _touch(tmp_path, "paper.pdf")
+    _touch(tmp_path, "Smith_paper.pdf")
     _touch(tmp_path, "invoice.pdf")
     _touch(tmp_path, "noyear.pdf")
     _touch(tmp_path, "Smith_(2023)_10.1000_xyz.pdf")
 
     fake_text = {
-        "paper.pdf": ("Abstract DOI 10.1000/xyz", "A Paper"),
+        "Smith_paper.pdf": ("Abstract DOI 10.1000/xyz", "A Paper"),
         "invoice.pdf": ("INVOICE #: 12", "Invoice"),
         "noyear.pdf": ("Abstract DOI 10.1000/noyear", "NoYear"),
         "Smith_(2023)_10.1000_xyz.pdf": ("Abstract DOI 10.1000/xyz", "Conformant"),
@@ -190,8 +190,8 @@ def test_process_folder_groups_results(tmp_path):
 
     results = {r.path.split("/")[-1]: r for r in process_folder(str(tmp_path), extractor=extractor, fetcher=fetcher)}
 
-    assert results["paper.pdf"].group == "rename"
-    assert results["paper.pdf"].proposed == "Smith, J. (2023) A Paper - 10.1000_xyz.pdf"
+    assert results["Smith_paper.pdf"].group == "rename"
+    assert results["Smith_paper.pdf"].proposed == "Smith, J. (2023) A Paper - 10.1000_xyz.pdf"
     assert results["invoice.pdf"].group == "skip"
     assert results["noyear.pdf"].group == "review"
     assert "year" in results["noyear.pdf"].reason.lower()
@@ -314,8 +314,8 @@ from rename_papers import extract_all_dois
 
 
 def test_extract_all_dois_distinct_in_order():
-    text = "10.1/a and 10.2/b then 10.1/a again, 10.3/c."
-    assert extract_all_dois(text) == ["10.1/a", "10.2/b", "10.3/c"]
+    text = "10.1000/a and 10.2000/b then 10.1000/a again, 10.3000/c."
+    assert extract_all_dois(text) == ["10.1000/a", "10.2000/b", "10.3000/c"]
 
 
 def test_extract_all_dois_empty():
@@ -358,7 +358,7 @@ def test_process_folder_bibliography_to_review(tmp_path):
     res = _fake_pipeline(
         tmp_path,
         ["biblio.pdf"],
-        {"biblio.pdf": "refs 10.1/a 10.2/b 10.3/c 10.4/d 10.5/e"},
+        {"biblio.pdf": "refs 10.1000/a 10.2000/b 10.3000/c 10.4000/d 10.5000/e"},
         {},
     )
     assert res["biblio.pdf"].group == "review"
@@ -369,10 +369,10 @@ def test_process_folder_author_mismatch_to_review(tmp_path):
     res = _fake_pipeline(
         tmp_path,
         ["Derwall_et_al_(2005)_Ethical.pdf"],
-        {"Derwall_et_al_(2005)_Ethical.pdf": "Abstract 10.1/x"},
-        {"10.1/x": {"message": {"author": [{"family": "Bauer", "given": "Rob"}],
-                                "title": ["The Ethical Mutual Fund Debate"],
-                                "issued": {"date-parts": [[2007]]}}}},
+        {"Derwall_et_al_(2005)_Ethical.pdf": "Abstract 10.1000/x"},
+        {"10.1000/x": {"message": {"author": [{"family": "Bauer", "given": "Rob"}],
+                                   "title": ["The Ethical Mutual Fund Debate"],
+                                   "issued": {"date-parts": [[2007]]}}}},
     )
     r = res["Derwall_et_al_(2005)_Ethical.pdf"]
     assert r.group == "review"
