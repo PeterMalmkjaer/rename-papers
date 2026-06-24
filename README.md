@@ -12,6 +12,11 @@ Abramson_et_al_(2024)_AlphaFold3_Nature.pdf
 It is packaged as a [Claude Code](https://claude.com/claude-code) skill but the
 pipeline is a plain Python script you can run on its own.
 
+> ⚠️ **Beta — experimental use only.** This is early, experimental software
+> provided **as is, with no warranty of any kind** (see [LICENSE](LICENSE)). It
+> renames your files. Always use the dry run first, review the proposed changes,
+> and keep a backup. Use at your own risk.
+
 ## Filename format
 
 ```
@@ -98,3 +103,8 @@ handling) plus the `process_folder` orchestrator. CrossRef and PDF I/O are
 injected so tests need no network or real PDFs.
 
 Design notes live in [`docs/`](docs/).
+
+## License
+
+[MIT](LICENSE) © 2026 Peter Malmkjær. Provided "as is", without warranty of any
+kind. Beta / experimental — use at your own risk.
