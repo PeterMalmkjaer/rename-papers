@@ -95,3 +95,34 @@ def test_resolve_collision_returns_target_when_free():
 def test_resolve_collision_appends_lowest_free_number():
     taken = {"a.pdf", "a (2).pdf"}
     assert resolve_collision("a.pdf", taken) == "a (3).pdf"
+
+
+from rename_papers import crossref_lookup
+
+_CROSSREF_OK = {
+    "message": {
+        "author": [{"family": "Smith", "given": "John"}, {"family": "Jones", "given": "Amy"}],
+        "title": ["Deep Learning for Graphs"],
+        "issued": {"date-parts": [[2023, 5]]},
+    }
+}
+
+
+def test_crossref_lookup_maps_fields():
+    meta = crossref_lookup("10.1000/xyz123", fetch=lambda url: _CROSSREF_OK)
+    assert meta.authors[0].family == "Smith"
+    assert meta.authors[0].given == "John"
+    assert len(meta.authors) == 2
+    assert meta.year == 2023
+    assert meta.title == "Deep Learning for Graphs"
+    assert meta.doi == "10.1000/xyz123"
+
+
+def test_crossref_lookup_returns_none_on_error():
+    def boom(url):
+        raise RuntimeError("network down")
+    assert crossref_lookup("10.1000/xyz123", fetch=boom) is None
+
+
+def test_crossref_lookup_returns_none_on_empty():
+    assert crossref_lookup("10.1000/xyz123", fetch=lambda url: {}) is None

@@ -1,5 +1,7 @@
 """rename-papers: rename scientific paper PDFs into Harvard-style names with DOI."""
 import re
+import json
+import urllib.request
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -104,3 +106,36 @@ def resolve_collision(target, taken):
     while f"{base} ({n}){suffix}" in taken:
         n += 1
     return f"{base} ({n}){suffix}"
+
+
+def http_get_json(url):
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "rename-papers/1.0 (mailto:peter.malmkjaer@gmail.com)"},
+    )
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def crossref_lookup(doi, fetch):
+    try:
+        data = fetch(f"https://api.crossref.org/works/{doi}")
+    except Exception:
+        return None
+    msg = (data or {}).get("message")
+    if not msg:
+        return None
+    authors = [
+        Author(family=a.get("family", ""), given=a.get("given", ""))
+        for a in msg.get("author", [])
+        if a.get("family")
+    ]
+    title_list = msg.get("title") or []
+    title = title_list[0] if title_list else None
+    year = None
+    for key in ("published-print", "published-online", "issued"):
+        parts = (msg.get(key) or {}).get("date-parts") or [[None]]
+        if parts and parts[0] and parts[0][0]:
+            year = parts[0][0]
+            break
+    return PaperMeta(authors=authors, year=year, title=title, doi=doi)
