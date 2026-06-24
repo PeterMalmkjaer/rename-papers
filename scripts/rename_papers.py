@@ -1,6 +1,8 @@
 """rename-papers: rename scientific paper PDFs into Harvard-style names with DOI."""
 import re
 import json
+import glob
+import os
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Optional
@@ -152,3 +154,51 @@ def extract_pdf_text_and_meta(path, max_pages=2):
     for page in reader.pages[:max_pages]:
         text += (page.extract_text() or "") + "\n"
     return text, title
+
+
+@dataclass
+class FileResult:
+    path: str
+    group: str
+    proposed: Optional[str] = None
+    reason: str = ""
+
+
+def process_folder(folder, extractor=extract_pdf_text_and_meta, fetcher=http_get_json):
+    results = []
+    paths = sorted(glob.glob(os.path.join(folder, "*.pdf")))
+    for path in paths:
+        name = os.path.basename(path)
+        try:
+            text, etitle = extractor(path)
+        except Exception as exc:
+            results.append(FileResult(path, "review", reason=f"could not read PDF: {exc}"))
+            continue
+
+        doi = extract_doi(text)
+        cls = classify_document(text, has_doi=bool(doi), embedded_title=etitle)
+
+        if cls.kind == "not_paper":
+            results.append(FileResult(path, "skip"))
+            continue
+        if not doi:
+            reason = "could not classify; no DOI found" if cls.kind == "ambiguous" else "no DOI found in PDF"
+            results.append(FileResult(path, "review", reason=reason))
+            continue
+
+        meta = crossref_lookup(doi, fetcher)
+        if meta is None:
+            results.append(FileResult(path, "review", reason="CrossRef had no record for DOI"))
+            continue
+        if not meta.authors:
+            results.append(FileResult(path, "review", reason="no author found"))
+            continue
+        if meta.year is None:
+            results.append(FileResult(path, "review", reason="no publication year found"))
+            continue
+        if is_already_conformant(name, doi):
+            results.append(FileResult(path, "conformant"))
+            continue
+
+        results.append(FileResult(path, "rename", proposed=build_filename(meta)))
+    return results

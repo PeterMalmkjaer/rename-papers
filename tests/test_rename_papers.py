@@ -144,3 +144,48 @@ def test_extract_pdf_text_and_meta(tmp_path):
     text, title = extract_pdf_text_and_meta(str(pdf))
     assert "10.1000/xyz123" in text
     assert title == "A Test Paper"
+
+
+from rename_papers import FileResult, process_folder
+
+
+def _touch(folder, name):
+    p = folder / name
+    p.write_bytes(b"%PDF-1.4 fake")
+    return p
+
+
+def test_process_folder_groups_results(tmp_path):
+    _touch(tmp_path, "paper.pdf")
+    _touch(tmp_path, "invoice.pdf")
+    _touch(tmp_path, "noyear.pdf")
+    _touch(tmp_path, "Smith_(2023)_10.1000_xyz.pdf")
+
+    fake_text = {
+        "paper.pdf": ("Abstract DOI 10.1000/xyz", "A Paper"),
+        "invoice.pdf": ("INVOICE #: 12", "Invoice"),
+        "noyear.pdf": ("Abstract DOI 10.1000/noyear", "NoYear"),
+        "Smith_(2023)_10.1000_xyz.pdf": ("Abstract DOI 10.1000/xyz", "Conformant"),
+    }
+
+    def extractor(path, max_pages=2):
+        import os
+        return fake_text[os.path.basename(path)]
+
+    def fetcher(url):
+        if url.endswith("10.1000/xyz"):
+            return {"message": {"author": [{"family": "Smith", "given": "John"}],
+                                "title": ["A Paper"], "issued": {"date-parts": [[2023]]}}}
+        if url.endswith("10.1000/noyear"):
+            return {"message": {"author": [{"family": "Doe", "given": "Jane"}],
+                                "title": ["No Year"], "issued": {"date-parts": [[None]]}}}
+        return {}
+
+    results = {r.path.split("/")[-1]: r for r in process_folder(str(tmp_path), extractor=extractor, fetcher=fetcher)}
+
+    assert results["paper.pdf"].group == "rename"
+    assert results["paper.pdf"].proposed == "Smith, J. (2023) A Paper - 10.1000_xyz.pdf"
+    assert results["invoice.pdf"].group == "skip"
+    assert results["noyear.pdf"].group == "review"
+    assert "year" in results["noyear.pdf"].reason.lower()
+    assert results["Smith_(2023)_10.1000_xyz.pdf"].group == "conformant"
