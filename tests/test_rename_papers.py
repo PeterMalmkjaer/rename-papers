@@ -320,3 +320,16 @@ def test_extract_all_dois_distinct_in_order():
 def test_extract_all_dois_empty():
     assert extract_all_dois("") == []
     assert extract_all_dois("no doi here") == []
+
+
+def test_build_filename_with_variant_marker():
+    m = PaperMeta(authors=[Author("Frey", "Bruno"), Author("Gallus", "Jana")],
+                  year=2017, title="Towards an Economics of Awards", doi="10.1111/joes.12127")
+    assert build_filename(m, variant="ANNOTATED") == (
+        "Frey, B. et al. (2017) Towards an Economics of Awards - 10.1111_joes.12127 [ANNOTATED].pdf"
+    )
+
+
+def test_build_filename_variant_none_unchanged():
+    m = PaperMeta(authors=[Author("Smith", "John")], year=2023, title="T", doi="10.1/x")
+    assert build_filename(m) == "Smith, J. (2023) T - 10.1_x.pdf"

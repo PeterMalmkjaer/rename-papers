@@ -113,7 +113,7 @@ def classify_document(text, has_doi, embedded_title=""):
     return Classification("ambiguous", "no clear scholarly markers")
 
 
-def build_filename(meta, max_len=200):
+def build_filename(meta, max_len=200, variant=None):
     if not meta.authors:
         raise ValueError("build_filename requires at least one author")
     first = meta.authors[0]
@@ -122,7 +122,8 @@ def build_filename(meta, max_len=200):
         author_part += " et al."
     doi_safe = (meta.doi or "").replace("/", "_")
     title = meta.title or ""
-    suffix = f" - {doi_safe}.pdf"
+    tag = f" [{variant}]" if variant else ""
+    suffix = f" - {doi_safe}{tag}.pdf"
     prefix = f"{author_part} ({meta.year}) "
 
     name = sanitize_filename(f"{prefix}{title}{suffix}")
