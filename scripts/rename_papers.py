@@ -3,6 +3,8 @@ import re
 import json
 import glob
 import os
+import argparse
+import sys
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Optional
@@ -221,3 +223,52 @@ def apply_renames(results, folder, undo_log_path):
     with open(undo_log_path, "w", encoding="utf-8") as f:
         json.dump(undo, f, indent=2, ensure_ascii=False)
     return undo
+
+
+def format_report(results):
+    renames = [r for r in results if r.group == "rename"]
+    reviews = [r for r in results if r.group == "review"]
+    n_conformant = sum(1 for r in results if r.group == "conformant")
+    n_skipped = sum(1 for r in results if r.group == "skip")
+
+    lines = []
+    lines.append(f"== Rename ({len(renames)}) ==")
+    for r in renames:
+        lines.append(f"  {os.path.basename(r.path)}")
+        lines.append(f"    -> {r.proposed}")
+    lines.append("")
+    lines.append(f"== Needs review ({len(reviews)}) ==")
+    for r in reviews:
+        lines.append(f"  {os.path.basename(r.path)} — {r.reason}")
+    lines.append("")
+    lines.append(f"Already well-named (unchanged): {n_conformant}")
+    lines.append(f"Skipped (not scholarly): {n_skipped}")
+    return "\n".join(lines)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Rename scientific paper PDFs to Harvard-style names with DOI.")
+    parser.add_argument("folder", help="folder containing PDFs")
+    parser.add_argument("--apply", action="store_true", help="actually rename (default: dry run)")
+    parser.add_argument("--json", dest="json_path", help="write full results as JSON to this path")
+    args = parser.parse_args(argv)
+
+    results = process_folder(args.folder)
+    print(format_report(results))
+
+    if args.json_path:
+        payload = [{"path": r.path, "group": r.group, "proposed": r.proposed, "reason": r.reason} for r in results]
+        with open(args.json_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2, ensure_ascii=False)
+
+    if args.apply:
+        undo_path = os.path.join(args.folder, "rename-undo.json")
+        undo = apply_renames(results, args.folder, undo_path)
+        print(f"\nRenamed {len(undo)} files. Undo log: {undo_path}")
+    else:
+        print("\n(dry run — nothing renamed; pass --apply to rename)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

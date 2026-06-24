@@ -219,3 +219,21 @@ def test_apply_renames_resolves_collision(tmp_path):
 
     assert undo == [{"from": "old.pdf", "to": "Target (2).pdf"}]
     assert (tmp_path / "Target (2).pdf").exists()
+
+
+from rename_papers import format_report
+
+
+def test_format_report_lists_renames_and_reviews_hides_skips():
+    results = [
+        FileResult("/x/old.pdf", "rename", proposed="Smith, J. (2023) T - 10.1_x.pdf"),
+        FileResult("/x/q.pdf", "review", reason="no DOI found in PDF"),
+        FileResult("/x/junk.pdf", "skip"),
+        FileResult("/x/good.pdf", "conformant"),
+    ]
+    out = format_report(results)
+    assert "old.pdf" in out
+    assert "Smith, J. (2023) T - 10.1_x.pdf" in out
+    assert "no DOI found in PDF" in out
+    assert "junk.pdf" not in out          # skipped files are silent
+    assert "1" in out                      # conformant count appears
