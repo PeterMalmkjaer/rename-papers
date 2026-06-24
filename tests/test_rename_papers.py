@@ -307,3 +307,16 @@ def test_variant_marker_plain_year_is_not_a_marker():
 
 def test_variant_marker_none():
     assert extract_variant_marker("Smith_(2023)_Clean.pdf") is None
+
+
+from rename_papers import extract_all_dois
+
+
+def test_extract_all_dois_distinct_in_order():
+    text = "10.1/a and 10.2/b then 10.1/a again, 10.3/c."
+    assert extract_all_dois(text) == ["10.1/a", "10.2/b", "10.3/c"]
+
+
+def test_extract_all_dois_empty():
+    assert extract_all_dois("") == []
+    assert extract_all_dois("no doi here") == []

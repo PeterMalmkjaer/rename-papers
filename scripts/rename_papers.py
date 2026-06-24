@@ -37,6 +37,20 @@ _MARKER_YEARLETTER = re.compile(r"\(\d{4}([a-z])\)")
 _MARKER_DUPCOUNT = re.compile(r"\((\d{1,2})\)")
 
 
+_DOI_ANY_RE = re.compile(r"10\.\d+/[^\s\"<>,;()\[\]]+", re.IGNORECASE)
+
+
+def extract_all_dois(text):
+    if not text:
+        return []
+    seen = []
+    for m in _DOI_ANY_RE.finditer(text):
+        d = m.group(0).rstrip(".")
+        if d not in seen:
+            seen.append(d)
+    return seen
+
+
 def extract_variant_marker(filename):
     stem = os.path.splitext(os.path.basename(filename or ""))[0]
     markers = []
