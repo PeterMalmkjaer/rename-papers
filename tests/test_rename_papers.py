@@ -23,3 +23,33 @@ def test_extract_doi_strips_trailing_period():
 def test_extract_doi_returns_none_when_absent():
     assert extract_doi("no identifier here") is None
     assert extract_doi("") is None
+
+
+from rename_papers import Author, PaperMeta, build_filename
+
+
+def _meta(authors, year=2023, title="Deep learning for graphs", doi="10.1000/xyz123"):
+    return PaperMeta(authors=authors, year=year, title=title, doi=doi)
+
+
+def test_build_filename_single_author():
+    m = _meta([Author("Smith", "John")])
+    assert build_filename(m) == "Smith, J. (2023) Deep learning for graphs - 10.1000_xyz123.pdf"
+
+
+def test_build_filename_multiple_authors_et_al():
+    m = _meta([Author("Smith", "John"), Author("Jones", "Amy")])
+    assert build_filename(m) == "Smith, J. et al. (2023) Deep learning for graphs - 10.1000_xyz123.pdf"
+
+
+def test_build_filename_author_without_given_name():
+    m = _meta([Author("Smith", "")])
+    assert build_filename(m) == "Smith (2023) Deep learning for graphs - 10.1000_xyz123.pdf"
+
+
+def test_build_filename_truncates_long_title_under_max_len():
+    m = _meta([Author("Smith", "John")], title="x" * 400)
+    name = build_filename(m, max_len=80)
+    assert len(name) <= 80
+    assert name.startswith("Smith, J. (2023) ")
+    assert name.endswith(" - 10.1000_xyz123.pdf")
