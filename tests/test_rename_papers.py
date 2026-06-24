@@ -53,3 +53,23 @@ def test_build_filename_truncates_long_title_under_max_len():
     assert len(name) <= 80
     assert name.startswith("Smith, J. (2023) ")
     assert name.endswith(" - 10.1000_xyz123.pdf")
+
+
+from rename_papers import Classification, classify_document
+
+
+def test_classify_doi_is_paper():
+    assert classify_document("anything", has_doi=True).kind == "paper"
+
+
+def test_classify_invoice_is_not_paper():
+    assert classify_document("INVOICE #: 554", has_doi=False, embedded_title="Invoice").kind == "not_paper"
+
+
+def test_classify_scholarly_markers_is_paper():
+    text = "Abstract\nThis paper studies... References\nSmith et al."
+    assert classify_document(text, has_doi=False).kind == "paper"
+
+
+def test_classify_unknown_is_ambiguous():
+    assert classify_document("Haze Aur Cel.M SUE", has_doi=False).kind == "ambiguous"

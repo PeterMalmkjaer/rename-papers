@@ -39,6 +39,36 @@ class PaperMeta:
     doi: Optional[str] = None
 
 
+@dataclass
+class Classification:
+    kind: str
+    reason: str = ""
+
+
+_NONSCHOLARLY = [
+    "invoice", "faktura", "forsikringsbetingelser", "priips",
+    "central information", "aftalevilkår", "terms of use", "terms of service",
+    "bekendtgørelse", "kørselsvejledning", "pensionsoplysninger", "erklæring",
+    "purchase order", "receipt", "boarding pass",
+]
+_SCHOLARLY = [
+    "abstract", "references", "bibliography", "journal", "isbn",
+    "doi:", "et al", "this paper", "literature review", "we find that",
+    "cite this", "proceedings",
+]
+
+
+def classify_document(text, has_doi, embedded_title=""):
+    if has_doi:
+        return Classification("paper", "DOI present")
+    blob = f"{embedded_title}\n{text}".lower()
+    if any(k in blob for k in _NONSCHOLARLY):
+        return Classification("not_paper", "matched non-scholarly marker")
+    if any(k in blob for k in _SCHOLARLY):
+        return Classification("paper", "matched scholarly marker")
+    return Classification("ambiguous", "no clear scholarly markers")
+
+
 def build_filename(meta, max_len=200):
     first = meta.authors[0]
     author_part = f"{first.family}, {first.given[0]}." if first.given else first.family
