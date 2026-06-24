@@ -189,3 +189,33 @@ def test_process_folder_groups_results(tmp_path):
     assert results["noyear.pdf"].group == "review"
     assert "year" in results["noyear.pdf"].reason.lower()
     assert results["Smith_(2023)_10.1000_xyz.pdf"].group == "conformant"
+
+
+import json as _json
+from rename_papers import apply_renames
+
+
+def test_apply_renames_renames_and_writes_undo(tmp_path):
+    src = tmp_path / "old.pdf"
+    src.write_bytes(b"%PDF fake")
+    results = [FileResult(str(src), "rename", proposed="Smith, J. (2023) T - 10.1_x.pdf")]
+    undo_path = tmp_path / "undo.json"
+
+    undo = apply_renames(results, str(tmp_path), str(undo_path))
+
+    assert (tmp_path / "Smith, J. (2023) T - 10.1_x.pdf").exists()
+    assert not src.exists()
+    assert undo == [{"from": "old.pdf", "to": "Smith, J. (2023) T - 10.1_x.pdf"}]
+    assert _json.loads(undo_path.read_text()) == undo
+
+
+def test_apply_renames_resolves_collision(tmp_path):
+    (tmp_path / "Target.pdf").write_bytes(b"existing")
+    src = tmp_path / "old.pdf"
+    src.write_bytes(b"%PDF fake")
+    results = [FileResult(str(src), "rename", proposed="Target.pdf")]
+
+    undo = apply_renames(results, str(tmp_path), str(tmp_path / "undo.json"))
+
+    assert undo == [{"from": "old.pdf", "to": "Target (2).pdf"}]
+    assert (tmp_path / "Target (2).pdf").exists()

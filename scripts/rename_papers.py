@@ -202,3 +202,22 @@ def process_folder(folder, extractor=extract_pdf_text_and_meta, fetcher=http_get
 
         results.append(FileResult(path, "rename", proposed=build_filename(meta)))
     return results
+
+
+def apply_renames(results, folder, undo_log_path):
+    taken = set(os.listdir(folder))
+    undo = []
+    for r in results:
+        if r.group != "rename" or not r.proposed:
+            continue
+        target = resolve_collision(r.proposed, taken)
+        dst = os.path.join(folder, target)
+        if os.path.exists(dst):
+            continue
+        os.rename(r.path, dst)
+        taken.discard(os.path.basename(r.path))
+        taken.add(target)
+        undo.append({"from": os.path.basename(r.path), "to": target})
+    with open(undo_log_path, "w", encoding="utf-8") as f:
+        json.dump(undo, f, indent=2, ensure_ascii=False)
+    return undo
