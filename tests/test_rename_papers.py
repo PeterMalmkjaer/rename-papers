@@ -1,3 +1,4 @@
+import os
 from rename_papers import sanitize_filename
 
 
@@ -333,3 +334,73 @@ def test_build_filename_with_variant_marker():
 def test_build_filename_variant_none_unchanged():
     m = PaperMeta(authors=[Author("Smith", "John")], year=2023, title="T", doi="10.1/x")
     assert build_filename(m) == "Smith, J. (2023) T - 10.1_x.pdf"
+
+
+from rename_papers import process_folder, FileResult
+
+
+def _fake_pipeline(tmp_path, files, text_map, crossref_map):
+    for n in files:
+        (tmp_path / n).write_bytes(b"%PDF fake")
+
+    def extractor(path, max_pages=2):
+        return text_map[os.path.basename(path)], ""
+
+    def fetcher(url):
+        doi = url.rsplit("/works/", 1)[-1]
+        return crossref_map.get(doi, {})
+
+    return {os.path.basename(r.path): r
+            for r in process_folder(str(tmp_path), extractor=extractor, fetcher=fetcher)}
+
+
+def test_process_folder_bibliography_to_review(tmp_path):
+    res = _fake_pipeline(
+        tmp_path,
+        ["biblio.pdf"],
+        {"biblio.pdf": "refs 10.1/a 10.2/b 10.3/c 10.4/d 10.5/e"},
+        {},
+    )
+    assert res["biblio.pdf"].group == "review"
+    assert "bibliograph" in res["biblio.pdf"].reason.lower() or "multiple doi" in res["biblio.pdf"].reason.lower()
+
+
+def test_process_folder_author_mismatch_to_review(tmp_path):
+    res = _fake_pipeline(
+        tmp_path,
+        ["Derwall_et_al_(2005)_Ethical.pdf"],
+        {"Derwall_et_al_(2005)_Ethical.pdf": "Abstract 10.1/x"},
+        {"10.1/x": {"message": {"author": [{"family": "Bauer", "given": "Rob"}],
+                                "title": ["The Ethical Mutual Fund Debate"],
+                                "issued": {"date-parts": [[2007]]}}}},
+    )
+    r = res["Derwall_et_al_(2005)_Ethical.pdf"]
+    assert r.group == "review"
+    assert "bauer" in r.reason.lower()
+
+
+def test_process_folder_author_match_renames_with_variant(tmp_path):
+    res = _fake_pipeline(
+        tmp_path,
+        ["Frey_Gallus_(2017)_Awards_ANNOTATED.pdf"],
+        {"Frey_Gallus_(2017)_Awards_ANNOTATED.pdf": "Abstract 10.1111/joes.12127"},
+        {"10.1111/joes.12127": {"message": {"author": [{"family": "Frey", "given": "Bruno"},
+                                                       {"family": "Gallus", "given": "Jana"}],
+                                            "title": ["Towards an Economics of Awards"],
+                                            "issued": {"date-parts": [[2017]]}}}},
+    )
+    r = res["Frey_Gallus_(2017)_Awards_ANNOTATED.pdf"]
+    assert r.group == "rename"
+    assert r.proposed.endswith("[ANNOTATED].pdf")
+
+
+def test_process_folder_hyphenated_surname_not_flagged(tmp_path):
+    res = _fake_pipeline(
+        tmp_path,
+        ["GregorySmith_Wright_(2019)_Tournaments.pdf"],
+        {"GregorySmith_Wright_(2019)_Tournaments.pdf": "Abstract 10.1093/oep/gpy033"},
+        {"10.1093/oep/gpy033": {"message": {"author": [{"family": "Gregory-Smith", "given": "Ian"}],
+                                            "title": ["Winners and losers"],
+                                            "issued": {"date-parts": [[2019]]}}}},
+    )
+    assert res["GregorySmith_Wright_(2019)_Tournaments.pdf"].group == "rename"

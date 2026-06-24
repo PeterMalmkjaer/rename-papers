@@ -5,6 +5,7 @@ import glob
 import os
 import argparse
 import sys
+import unicodedata
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Optional
@@ -207,6 +208,19 @@ class FileResult:
     reason: str = ""
 
 
+BIBLIOGRAPHY_DOI_THRESHOLD = 4
+
+
+def _normalize(s):
+    s = unicodedata.normalize("NFKD", s or "")
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return re.sub(r"[^a-z0-9]", "", s.lower())
+
+
+def _has_alpha_token(name):
+    return any(len(tok) >= 4 for tok in re.split(r"[^A-Za-z]+", name) if tok.isalpha())
+
+
 def process_folder(folder, extractor=extract_pdf_text_and_meta, fetcher=http_get_json):
     results = []
     paths = sorted(glob.glob(os.path.join(folder, "*.pdf")))
@@ -218,7 +232,8 @@ def process_folder(folder, extractor=extract_pdf_text_and_meta, fetcher=http_get
             results.append(FileResult(path, "review", reason=f"could not read PDF: {exc}"))
             continue
 
-        doi = extract_doi(text)
+        all_dois = extract_all_dois(text)
+        doi = all_dois[0] if all_dois else None
         cls = classify_document(text, has_doi=bool(doi), embedded_title=etitle)
 
         if cls.kind == "not_paper":
@@ -227,6 +242,10 @@ def process_folder(folder, extractor=extract_pdf_text_and_meta, fetcher=http_get
         if not doi:
             reason = "could not classify; no DOI found" if cls.kind == "ambiguous" else "no DOI found in PDF"
             results.append(FileResult(path, "review", reason=reason))
+            continue
+        if len(all_dois) >= BIBLIOGRAPHY_DOI_THRESHOLD:
+            results.append(FileResult(path, "review",
+                                      reason="multiple DOIs found (likely a bibliography/reference list)"))
             continue
 
         meta = crossref_lookup(doi, fetcher)
@@ -239,11 +258,20 @@ def process_folder(folder, extractor=extract_pdf_text_and_meta, fetcher=http_get
         if meta.year is None:
             results.append(FileResult(path, "review", reason="no publication year found"))
             continue
+
+        surname_norm = _normalize(meta.authors[0].family)
+        name_norm = _normalize(name)
+        if len(surname_norm) >= 3 and _has_alpha_token(name) and "_" in name and surname_norm not in name_norm:
+            results.append(FileResult(path, "review",
+                                      reason=f"CrossRef author '{meta.authors[0].family}' not found in filename — possible wrong DOI"))
+            continue
+
         if is_already_conformant(name, doi):
             results.append(FileResult(path, "conformant"))
             continue
 
-        results.append(FileResult(path, "rename", proposed=build_filename(meta)))
+        variant = extract_variant_marker(name)
+        results.append(FileResult(path, "rename", proposed=build_filename(meta, variant=variant)))
     return results
 
 
