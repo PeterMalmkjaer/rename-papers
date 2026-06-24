@@ -1,6 +1,7 @@
 # rename-papers
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Status: Beta](https://img.shields.io/badge/status-beta%20%E2%80%94%20experimental-orange.svg)](#)
 
 Rename scientific paper and book PDFs into consistent, Harvard-style filenames
 with the DOI appended — verified against [CrossRef](https://www.crossref.org/),
